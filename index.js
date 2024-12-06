@@ -1,5 +1,5 @@
 const express = require("express");
-const { addStudent } = require("./Actions/child");
+const { addStudent } = require("./Student/student.js");
 const app = express();
 const port = 5000;
 
