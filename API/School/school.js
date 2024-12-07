@@ -4,8 +4,9 @@ const School = require("../../models/school");
 const SchoolCredential = require("../../models/school_credential");
 const sendResponse = require("../../responseFormat");
 
-exports.signin = async (req, res) => {
-  const t = await sequelize.transaction(); // Start a transaction
+// ? Create School Account & Save Credentials
+exports.Signup = async (req, res) => {
+  const process = await sequelize.transaction(); // Start a transaction
   try {
     const {
       school_email,
@@ -42,7 +43,7 @@ exports.signin = async (req, res) => {
     }
 
     // ! STEP 2: Create School account and School credential
-    const schoolInfo = await School.create(req?.body, { transaction: t });
+    const schoolInfo = await School.create(req?.body, { transaction: process });
 
     await SchoolCredential.create(
       {
@@ -50,11 +51,11 @@ exports.signin = async (req, res) => {
         school_phone_number,
         school_password,
       },
-      { transaction: t }
+      { transaction: process }
     );
 
     // Commit transaction if all operations succeed
-    await t.commit();
+    await process.commit();
 
     // ! STEP 3: Send response for successful account creation
     sendResponse(
@@ -66,7 +67,7 @@ exports.signin = async (req, res) => {
   } catch (error) {
     // ! STEP 4: Error Handling
     // Rollback transaction on error
-    await t.rollback();
+    await process.rollback();
 
     console.error("Error while creating school account:", error);
 
@@ -74,7 +75,130 @@ exports.signin = async (req, res) => {
     sendResponse(
       res,
       false,
-      `Account creation failed. Reason: ${error?.message}`,
+      `Account creation failed. Reason: ${error?.message}!`,
+      {},
+      error
+    );
+  }
+};
+
+// ? Signin As School
+exports.Signin = async (req, res) => {
+  try {
+    const { school_phone_number, school_password } = req.query;
+
+    // ! STEP 1: Validate input
+    if (!school_phone_number || !school_password) {
+      return sendResponse(
+        res,
+        false,
+        "Signin failed. Reason: Missing phone number or password."
+      );
+    }
+
+    // ! STEP 2: Fetch school_id based on user input
+    const { school_id } = await SchoolCredential.findOne({
+      where: { school_phone_number, school_password },
+      attributes: ["school_id"],
+    });
+
+    if (!school_id) {
+      return sendResponse(
+        res,
+        false,
+        "No school found. Please check the provided values and try again!"
+      );
+    }
+
+    // ! STEP 3: Fetch school details using school_id
+    const school = await School.findOne({
+      where: { school_id },
+    });
+
+    if (!school) {
+      return sendResponse(
+        res,
+        false,
+        "School credential matched but school details not found!"
+      );
+    }
+
+    // ! STEP 4: Successful Signin
+    return sendResponse(res, true, "Signin successful.", school);
+  } catch (error) {
+    // ! STEP 5: Error handling
+    console.error("Error during signin:", error);
+    return sendResponse(
+      res,
+      false,
+      `Signin failed. Reason: ${error.message}`,
+      {},
+      error
+    );
+  }
+};
+
+// ?
+exports.EditSchoolProfile = async (req, res) => {
+  try {
+    // ! STEP 1: Extract required data from request
+    const { school_id } = req?.params;
+    const updated_school_data = req?.body;
+
+    // ! STEP 2: Validate input
+    if (!school_id || !updated_school_data) {
+      return sendResponse(
+        res,
+        false,
+        "Edit school profile failed. Reason: Missing required details!"
+      );
+    }
+
+    // ! STEP 3: Check if the school exists
+    const school = await School.findOne({
+      where: { school_id },
+      attributes: ["school_id"],
+    });
+    if (!school) {
+      return sendResponse(
+        res,
+        false,
+        "No school found. Please check the provided school ID and try again!"
+      );
+    }
+
+    // ! STEP 4: Update the school profile and get updated profile data
+    const [rowsUpdated, updated_school_profile_data] = await School.update(
+      updated_school_data,
+      {
+        where: { school_id },
+        returning: true,
+      }
+    );
+
+    // ! STEP 5: Show error if no row effected
+    if (rowsUpdated === 0) {
+      return sendResponse(
+        res,
+        false,
+        "School profile update failed. No changes were made!"
+      );
+    }
+
+    // ! STEP 6: Send success response
+    return sendResponse(
+      res,
+      true,
+      "School profile updated successfully.",
+      updated_school_profile_data
+    );
+  } catch (error) {
+    // ! STEP 7: Error handling
+    console.error("Error during editing school profile:", error);
+    return sendResponse(
+      res,
+      false,
+      `Edit school profile failed. Reason: ${error.message}!`,
       {},
       error
     );

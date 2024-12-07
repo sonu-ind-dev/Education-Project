@@ -35,6 +35,7 @@ const School = sequelize.define(
     school_email: {
       type: DataTypes.CHAR,
       allowNull: true,
+      unique: true,
       defaultValue: null,
       validate: {
         isEmail: true,
@@ -54,6 +55,7 @@ const School = sequelize.define(
     school_website_url: {
       type: DataTypes.CHAR,
       allowNull: true,
+      unique: true,
       defaultValue: null,
     },
   },

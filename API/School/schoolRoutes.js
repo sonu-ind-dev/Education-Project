@@ -1,8 +1,10 @@
 const express = require("express");
-const { signin } = require("./school");
+const { Signup, Signin, EditSchoolProfile } = require("./school");
 
 const router = express.Router();
 
-router.post("/signin", signin);
+router.post("/signup", Signup);
+router.get("/signin", Signin);
+router.put("/editSchoolProfile/:school_id", EditSchoolProfile);
 
 module.exports = router;
