@@ -5,6 +5,13 @@ const sequelize = require("../database/db");
 const ClassSection = sequelize.define(
   "class_section",
   {
+    class_section_id: {
+      type: DataTypes.BIGINT,
+      primaryKey: true,
+      autoIncrement: true,
+      allowNull: false,
+      unique: true,
+    },
     class_id: {
       type: DataTypes.BIGINT,
       allowNull: false,
