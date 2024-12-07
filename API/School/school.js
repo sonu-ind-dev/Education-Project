@@ -3,6 +3,7 @@ const sequelize = require("../../database/db"); // Assuming sequelize instance i
 const School = require("../../models/school");
 const SchoolCredential = require("../../models/school_credential");
 const sendResponse = require("../../responseFormat");
+const ClassModel = require("../../models/class");
 
 // ? Create School Account & Save Credentials
 exports.Signup = async (req, res) => {
@@ -111,9 +112,7 @@ exports.Signin = async (req, res) => {
     }
 
     // ! STEP 3: Fetch school details using school_id
-    const school = await School.findOne({
-      where: { school_id },
-    });
+    const school = await School.findByPk(school_id);
 
     if (!school) {
       return sendResponse(
@@ -155,10 +154,8 @@ exports.EditSchoolProfile = async (req, res) => {
     }
 
     // ! STEP 3: Check if the school exists
-    const school = await School.findOne({
-      where: { school_id },
-      attributes: ["school_id"],
-    });
+    const school = await School.findByPk(school_id);
+
     if (!school) {
       return sendResponse(
         res,
@@ -201,6 +198,161 @@ exports.EditSchoolProfile = async (req, res) => {
       `Edit school profile failed. Reason: ${error.message}!`,
       {},
       error
+    );
+  }
+};
+
+// ? Add Class In School
+exports.AddClass = async (req, res) => {
+  try {
+    // ! STEP 1: Extract parameters and body data
+    const { school_id } = req.params;
+    const { class_number, class_section } = req.body;
+
+    // ! STEP 2: Validate required details
+    if (!school_id || !class_number || !class_section) {
+      return sendResponse(
+        res,
+        false,
+        "Class addition in the school failed. Reason: Missing required details!"
+      );
+    }
+
+    // ! STEP 3: Verify if the school exists
+    const school = await School.findByPk(school_id);
+    if (!school) {
+      return sendResponse(
+        res,
+        false,
+        "No school found. Please check the provided school ID and try again!"
+      );
+    }
+
+    // ! STEP 4: Check for duplicate class (optional)
+    const existingClass = await ClassModel.findOne({
+      where: { school_id, class_number, class_section },
+    });
+    if (existingClass) {
+      return sendResponse(
+        res,
+        false,
+        "Class with the same number and section already exists for this school!"
+      );
+    }
+
+    // ! STEP 5: Create the new class
+    const createdClass = await ClassModel.create({
+      school_id,
+      class_number,
+      class_section,
+    });
+
+    // ! STEP 6: Verify if class creation was successful
+    if (!createdClass) {
+      return sendResponse(
+        res,
+        false,
+        "Failed to add class in school. Please try again!"
+      );
+    }
+
+    // ! STEP 7: Send success response
+    return sendResponse(
+      res,
+      true,
+      "Class in the school added successfully.",
+      createdClass
+    );
+  } catch (error) {
+    // ! STEP 8: Handle errors
+    console.error("Error during adding class in school:", error);
+    return sendResponse(
+      res,
+      false,
+      `Adding class in school failed. Reason: ${error.message}!`,
+      {},
+      error
+    );
+  }
+};
+
+// ? Add Section In Class Of A School
+exports.AddSection = async (req, res) => {
+  try {
+    // ! STEP 1: Extract parameters and body data
+    const { school_id, class_id } = req.params;
+    const { class_section } = req.body;
+
+    // ! STEP 2: Validate the input data
+    if (!school_id || !class_id || !class_section) {
+      return sendResponse(
+        res,
+        false,
+        "Failed to add the section. Reason: Missing required details (school ID, class ID, or section)!"
+      );
+    }
+
+    // ! STEP 3: Check if the school exists
+    const school = await School.findByPk(school_id);
+    if (!school) {
+      return sendResponse(
+        res,
+        false,
+        "Failed to add the section. Reason: No school found with the provided school ID!"
+      );
+    }
+
+    // ! STEP 4: Check if the class exists in the school
+    const existingClass = await ClassModel.findOne({
+      where: { class_id, school_id },
+    });
+    if (!existingClass) {
+      return sendResponse(
+        res,
+        false,
+        "Failed to add the section. Reason: No class found with the provided class ID in the specified school!"
+      );
+    }
+
+    // ! STEP 5: Check if the section already exists for this class
+    const isSectionExist = await ClassModel.findOne({
+      where: {
+        school_id,
+        class_number: existingClass.class_number,
+        class_section,
+      },
+    });
+
+    if (isSectionExist) {
+      return sendResponse(
+        res,
+        false,
+        "A class with the same number and section already exists for this school!"
+      );
+    }
+
+    // ! STEP 6: Create a new section
+    const newSection = await ClassModel.create({
+      school_id,
+      class_number: existingClass.class_number,
+      class_section,
+    });
+
+    // ! STEP 7: Send a success response with the created section details
+    return sendResponse(
+      res,
+      true,
+      "Section successfully added to the class.",
+      newSection
+    );
+  } catch (error) {
+    // ! STEP 8: Handle and log unexpected errors
+    console.error("Error while adding a section to the class:", error);
+    return sendResponse(
+      res,
+      false,
+      `An error occurred while adding the section. Reason: ${error.message}`,
+      {}
     );
   }
 };

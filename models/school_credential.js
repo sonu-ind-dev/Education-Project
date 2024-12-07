@@ -36,7 +36,7 @@ const SchoolCredential = sequelize.define(
   try {
     await SchoolCredential.sync({ alter: false }); // Use alter to update the table structure in the database
   } catch (error) {
-    console.error("Error syncing the School table:", error);
+    console.error("Error syncing the School Credential table:", error);
   }
 })();
 
