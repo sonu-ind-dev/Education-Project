@@ -1,24 +1,23 @@
 const { Op } = require("sequelize");
-const sequelize = require("../../database/db"); // Assuming sequelize instance is exported here
+const sequelize = require("../../database/db");
 const School = require("../../models/school");
 const SchoolCredential = require("../../models/school_credential");
 const sendResponse = require("../../responseFormat");
 const ClassModel = require("../../models/class");
+const ClassSection = require("../../models/class_section");
 
-// ? Create School Account & Save Credentials
+// Create School Account & Save Credentials
 exports.Signup = async (req, res) => {
-  const process = await sequelize.transaction(); // Start a transaction
+  const process = await sequelize.transaction();
   try {
     const {
       school_email,
       school_password,
       school_website_url,
       school_phone_number,
-    } = req?.body;
+    } = req.body;
+    delete req.body.school_password;
 
-    delete req?.body?.school_password;
-
-    // ! STEP 1: Validate if email, phone number, or website URL is already in use
     const duplicateEntry = await School.findOne({
       where: {
         [Op.or]: [
@@ -30,35 +29,27 @@ exports.Signup = async (req, res) => {
     });
 
     if (duplicateEntry) {
-      let errorMessage = "";
-
-      if (duplicateEntry.school_email === school_email) {
-        errorMessage = `The email '${school_email}' is already registered. Please try another email.`;
-      } else if (duplicateEntry.school_phone_number === school_phone_number) {
-        errorMessage = `The phone number '${school_phone_number}' is already registered. Please try another phone number.`;
-      } else if (duplicateEntry.school_website_url === school_website_url) {
-        errorMessage = `The website URL '${school_website_url}' is already registered. Please try another URL.`;
-      }
+      const errorMessage =
+        duplicateEntry.school_email === school_email
+          ? `The email '${school_email}' is already registered.`
+          : duplicateEntry.school_phone_number === school_phone_number
+          ? `The phone number '${school_phone_number}' is already registered.`
+          : `The website URL '${school_website_url}' is already registered.`;
 
       return sendResponse(res, false, errorMessage);
     }
 
-    // ! STEP 2: Create School account and School credential
-    const schoolInfo = await School.create(req?.body, { transaction: process });
-
+    const schoolInfo = await School.create(req.body, { transaction: process });
     await SchoolCredential.create(
       {
-        school_id: schoolInfo?.school_id,
+        school_id: schoolInfo.school_id,
         school_phone_number,
         school_password,
       },
       { transaction: process }
     );
 
-    // Commit transaction if all operations succeed
     await process.commit();
-
-    // ! STEP 3: Send response for successful account creation
     sendResponse(
       res,
       true,
@@ -66,68 +57,58 @@ exports.Signup = async (req, res) => {
       schoolInfo
     );
   } catch (error) {
-    // ! STEP 4: Error Handling
-    // Rollback transaction on error
     await process.rollback();
-
     console.error("Error while creating school account:", error);
-
-    // Send error response
     sendResponse(
       res,
       false,
-      `Account creation failed. Reason: ${error?.message}!`,
+      `Account creation failed. Reason: ${error.message}`,
       {},
       error
     );
   }
 };
 
-// ? Signin As School
+// Signin As School
 exports.Signin = async (req, res) => {
   try {
     const { school_phone_number, school_password } = req.query;
 
-    // ! STEP 1: Validate input
     if (!school_phone_number || !school_password) {
       return sendResponse(
         res,
         false,
-        "Signin failed. Reason: Missing phone number or password."
+        "Signin failed. Missing phone number or password."
       );
     }
 
-    // ! STEP 2: Fetch school_id based on user input
-    const { school_id } = await SchoolCredential.findOne({
-      where: { school_phone_number, school_password },
-      attributes: ["school_id"],
-    });
+    const { school_id } =
+      (await SchoolCredential.findOne({
+        where: { school_phone_number, school_password },
+        attributes: ["school_id"],
+      })) || {};
 
     if (!school_id) {
       return sendResponse(
         res,
         false,
-        "No school found. Please check the provided values and try again!"
+        "No school found. Please check the provided values."
       );
     }
 
-    // ! STEP 3: Fetch school details using school_id
     const school = await School.findByPk(school_id);
-
     if (!school) {
       return sendResponse(
         res,
         false,
-        "School credential matched but school details not found!"
+        "School credential matched but school details not found."
       );
     }
 
-    // ! STEP 4: Successful Signin
-    return sendResponse(res, true, "Signin successful.", school);
+    sendResponse(res, true, "Signin successful.", school);
   } catch (error) {
-    // ! STEP 5: Error handling
     console.error("Error during signin:", error);
-    return sendResponse(
+    sendResponse(
       res,
       false,
       `Signin failed. Reason: ${error.message}`,
@@ -137,172 +118,158 @@ exports.Signin = async (req, res) => {
   }
 };
 
-// ? Edit School Basic Information
+// Edit School Basic Information
 exports.EditSchoolProfile = async (req, res) => {
   try {
-    // ! STEP 1: Extract required data from request
-    const { school_id } = req?.params;
-    const updated_school_data = req?.body;
+    const { school_id } = req.params;
+    const updated_school_data = req.body;
 
-    // ! STEP 2: Validate input
     if (!school_id || !updated_school_data) {
       return sendResponse(
         res,
         false,
-        "Edit school profile failed. Reason: Missing required details!"
+        "Edit school profile failed. Missing required details."
       );
     }
 
-    // ! STEP 3: Update the school profile and get updated profile data
     const [rowsUpdated] = await School.update(updated_school_data, {
       where: { school_id },
     });
-
-    // ! STEP 4: Show error if no row effected
     if (rowsUpdated === 0) {
       return sendResponse(
         res,
         false,
-        "School profile update failed. No changes were made!"
+        "School profile update failed. No changes were made."
       );
     }
 
-    // ! STEP 5: Send success response
-    return sendResponse(res, true, "School profile updated successfully.");
+    sendResponse(res, true, "School profile updated successfully.");
   } catch (error) {
-    // ! STEP 6: Error handling
     console.error("Error during editing school profile:", error);
-    return sendResponse(
+    sendResponse(
       res,
       false,
-      `Edit school profile failed. Reason: ${error.message}!`,
+      `Edit school profile failed. Reason: ${error.message}`,
       {},
       error
     );
   }
 };
 
-// ? Add Class In School
+// Add Class In School
 exports.AddClass = async (req, res) => {
+  const process = await sequelize.transaction();
   try {
-    // ! STEP 1: Extract parameters and body data
-    const { school_id } = req.params;
-    const { class_number, class_section } = req.body;
+    const { school_id } = req?.params;
+    const class_number = Number(req?.query?.class_number);
 
-    // ! STEP 2: Validate required details
-    if (!school_id || !class_number || !class_section) {
+    if (!school_id || !class_number) {
       return sendResponse(
         res,
         false,
-        "Class addition in the school failed. Reason: Missing required details!"
+        "Class addition failed. Missing required details."
       );
     }
 
-    // ! STEP 3: Check for duplicate class (optional)
     const isDuplicateClassExist = await ClassModel.findOne({
-      where: { school_id, class_number, class_section },
+      where: { school_id, class_number },
     });
     if (isDuplicateClassExist) {
       return sendResponse(
         res,
         false,
-        "Another class with the same number and section already exists for this school!"
+        "Class with this number already exists for the school."
       );
     }
 
-    // ! STEP 4: Create the new class
-    const numberOfSections = await ClassModel.count({
-      where: { school_id, class_number },
-    });
+    const numberOfClasses = await ClassModel.count({ where: { school_id } });
+    const createdClass = await ClassModel.create(
+      {
+        school_id,
+        class_number,
+        class_index: numberOfClasses + 1,
+      },
+      { transaction: process }
+    );
 
-    const createdClass = await ClassModel.create({
-      school_id,
-      class_number,
-      class_section,
-      class_section_index: numberOfSections + 1,
-    });
+    const class_id = createdClass.class_id;
+    await ClassSection.destroy({ where: { class_id } });
 
-    // ! STEP 5: Verify if class creation was successful
-    if (!createdClass) {
+    const createdSection = await ClassSection.create(
+      { class_id },
+      { transaction: process }
+    );
+    if (!createdSection) {
+      await process.rollback();
       return sendResponse(
         res,
         false,
-        "Failed to add class in school. Please try again!"
+        "Failed to add default section in the class."
       );
     }
 
-    // ! STEP 6: Send success response
-    return sendResponse(
-      res,
-      true,
-      "Class in the school added successfully.",
-      createdClass
-    );
+    await process.commit();
+    sendResponse(res, true, "Class added successfully.", {
+      createdClass,
+      createdSection,
+    });
   } catch (error) {
-    // ! STEP 7: Handle errors
-    console.error("Error during adding class in school:", error);
-    return sendResponse(
+    await process.rollback();
+    console.error("Error during adding class:", error);
+    sendResponse(
       res,
       false,
-      `Adding class in school failed. Reason: ${error.message}!`,
+      `Adding class failed. Reason: ${error.message}`,
       {},
       error
     );
   }
 };
 
-// ? Changing Class Number Of School
+// Changing Class Number Of School
 exports.ChangeClassNumber = async (req, res) => {
   try {
-    const { school_id, class_id } = req?.params;
-    const { new_class_number } = req?.query;
+    const { school_id, class_id } = req.params;
+    const { old_class_number, new_class_number } = req.query;
 
-    // ! STEP 1: Validate input details
     if (!school_id || !class_id || !new_class_number) {
       return sendResponse(
         res,
         false,
-        "Failed to update class number. Reason: Missing required details!"
+        "Failed to update class number. Missing required details."
       );
     }
 
-    // ! STEP 2: Check if a class with the same number and section already exists
-    const isDuplicateClassExist = await ClassModel.findOne({
-      where: {
-        school_id,
-        class_number: new_class_number,
-        class_section: req?.Class?.class_section,
-      },
+    const isOldClassNumberExists = await ClassModel.findOne({
+      where: { class_id, class_number: old_class_number },
     });
-
-    if (isDuplicateClassExist) {
-      return sendResponse(
-        res,
-        false,
-        "Failed to update class number. Reason: A class with the same number and section already exists in this school!"
-      );
+    if (!isOldClassNumberExists) {
+      return sendResponse(res, false, "No class exists to change the number.");
     }
 
-    // ! STEP 3: Update the class number
+    const isDuplicateClassExist = await ClassModel.findOne({
+      where: { school_id, class_number: new_class_number },
+    });
+    if (isDuplicateClassExist) {
+      return sendResponse(res, false, "Class with this number already exists.");
+    }
+
     const [rowsUpdated] = await ClassModel.update(
       { class_number: new_class_number },
       { where: { class_id, school_id } }
     );
-
     if (rowsUpdated === 0) {
       return sendResponse(
         res,
         false,
-        "Failed to update class number. Reason: No changes were made!"
+        "Failed to update class number. No changes were made."
       );
     }
 
-    // ! STEP 4: Return success response
-    return sendResponse(res, true, "Class number updated successfully.");
+    sendResponse(res, true, "Class number updated successfully.");
   } catch (error) {
-    // ! STEP 5: Handle errors
     console.error("Error during class number update:", error);
-    return sendResponse(
+    sendResponse(
       res,
       false,
       `Failed to update class number. Reason: ${error.message}`,
@@ -312,126 +279,104 @@ exports.ChangeClassNumber = async (req, res) => {
   }
 };
 
-// ? Add Section In Class Of A School
+// Add Section In Class Of A School
 exports.AddClassSection = async (req, res) => {
   try {
-    // ! STEP 1: Extract parameters and body data
-    const { school_id, class_id } = req.params;
-    const { class_section } = req.body;
+    const { class_id } = req.params;
+    const { class_section } = req.query;
 
-    // ! STEP 2: Validate the input data
-    if (!school_id || !class_id || !class_section) {
+    if (!class_id || !class_section) {
       return sendResponse(
         res,
         false,
-        "Failed to add the section. Reason: Missing required details (school_id, class_id, or class_section)!"
+        "Failed to add section. Missing required details."
       );
     }
 
-    // ! STEP 3: Check if the section already exists for this class
-    const isDuplicateClassExist = await ClassModel.findOne({
-      where: {
-        school_id,
-        class_number: req?.Class?.class_number,
-        class_section,
-      },
+    const isDuplicateClassSectionExist = await ClassSection.findOne({
+      where: { class_id, class_section },
     });
 
-    if (isDuplicateClassExist) {
+    if (isDuplicateClassSectionExist) {
       return sendResponse(
         res,
         false,
-        "Another class with the same number and section already exists for this school!"
+        "Section with this name already exists in the class."
       );
     }
 
-    // ! STEP 4: Create a new section
-    const numberOfSections = await ClassModel.count({
-      where: { school_id, class_number: req?.Class?.class_number },
-    });
-
-    const newSection = await ClassModel.create({
-      school_id,
-      class_number: req?.Class?.class_number,
+    const numberOfSections = await ClassSection.count({ where: { class_id } });
+    const newSection = await ClassSection.create({
+      class_id,
       class_section,
       class_section_index: numberOfSections + 1,
     });
 
-    // ! STEP 5: Send a success response with the created section details
-    return sendResponse(
-      res,
-      true,
-      "Section successfully added to the class.",
-      newSection
-    );
+    sendResponse(res, true, "Section added successfully.", newSection);
   } catch (error) {
-    // ! STEP 6: Handle and log unexpected errors
-    console.error("Error while adding a section to the class:", error);
-    return sendResponse(
+    console.error("Error while adding section:", error);
+    sendResponse(
       res,
       false,
-      `An error occurred while adding the section. Reason: ${error.message}`,
-      {}
+      `Failed to add section. Reason: ${error.message}`,
+      {},
+      error
     );
   }
 };
 
+// Rename Class Section
 exports.RenameClassSection = async (req, res) => {
   try {
-    // ! STEP 1: Extract parameters and query data
-    const { school_id, class_id } = req?.params;
-    const { new_class_section } = req?.query;
+    const { class_id } = req.params;
+    const { old_class_section, new_class_section } = req.query;
 
-    // ! STEP 2: Validate the input data
-    if (!school_id || !class_id || !new_class_section) {
+    if (!class_id || !new_class_section) {
       return sendResponse(
         res,
         false,
-        "Failed to add the section. Reason: Missing required details (school_id, class_id, or class_section)!"
+        "Failed to rename section. Missing required details."
       );
     }
 
-    // ! STEP 3: Check if a class with the same number and section already exists
-    const duplicateClass = await ClassModel.findOne({
-      where: {
-        school_id,
-        class_number: req?.Class?.class_number,
-        class_section: new_class_section,
-      },
+    const isOldScenarioExist = await ClassSection.findOne({
+      where: { class_id, class_section: old_class_section },
     });
 
-    if (duplicateClass) {
-      return sendResponse(
-        res,
-        false,
-        "Failed to update class section. Reason: A class with the same number and section already exists in this school!"
-      );
+    if (!isOldScenarioExist) {
+      return sendResponse(res, false, "No section exists to rename.");
     }
 
-    // ! STEP 4: Update the class number
-    const [rowsUpdated] = await ClassModel.update(
+    const isDuplicateClassSectionExist = await ClassSection.findOne({
+      where: { class_id, class_section: new_class_section },
+    });
+
+    if (isDuplicateClassSectionExist) {
+      return sendResponse(res, false, "Section with this name already exists.");
+    }
+
+    const [rowsUpdated] = await ClassSection.update(
       { class_section: new_class_section },
-      { where: { class_id, school_id } }
+      { where: { class_id, class_section: old_class_section } }
     );
 
     if (rowsUpdated === 0) {
       return sendResponse(
         res,
         false,
-        "Failed to update class section. Reason: No changes were made!"
+        "Failed to rename section. No changes were made."
       );
     }
 
-    // ! STEP 5: Return success response
-    return sendResponse(res, true, "Class section updated successfully.");
+    sendResponse(res, true, "Section renamed successfully.");
   } catch (error) {
-    // ! STEP 6: Handle and log unexpected errors
-    console.error("Error while renaming the section:", error);
-    return sendResponse(
+    console.error("Error while renaming section:", error);
+    sendResponse(
       res,
       false,
-      `An error occurred while renaming the section. Reason: ${error.message}`,
-      {}
+      `Failed to rename section. Reason: ${error.message}`,
+      {},
+      error
     );
   }
 };

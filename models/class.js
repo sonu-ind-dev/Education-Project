@@ -20,11 +20,7 @@ const ClassModel = sequelize.define(
       type: DataTypes.BIGINT,
       allowNull: false,
     },
-    class_section: {
-      type: DataTypes.CHAR,
-      allowNull: false,
-    },
-    class_section_index: {
+    class_index: {
       type: DataTypes.BIGINT,
       allowNull: false,
       defaultValue: 1,
