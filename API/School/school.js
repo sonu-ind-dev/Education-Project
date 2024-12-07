@@ -138,7 +138,7 @@ exports.Signin = async (req, res) => {
   }
 };
 
-// ?
+// ? Edit School Basic Information
 exports.EditSchoolProfile = async (req, res) => {
   try {
     // ! STEP 1: Extract required data from request
