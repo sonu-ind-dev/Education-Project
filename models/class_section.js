@@ -1,4 +1,4 @@
-// * class table
+// * class section table
 const { DataTypes } = require("sequelize");
 const sequelize = require("../database/db");
 
