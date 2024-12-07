@@ -153,27 +153,12 @@ exports.EditSchoolProfile = async (req, res) => {
       );
     }
 
-    // ! STEP 3: Check if the school exists
-    const school = await School.findByPk(school_id);
+    // ! STEP 3: Update the school profile and get updated profile data
+    const [rowsUpdated] = await School.update(updated_school_data, {
+      where: { school_id },
+    });
 
-    if (!school) {
-      return sendResponse(
-        res,
-        false,
-        "No school found. Please check the provided school ID and try again!"
-      );
-    }
-
-    // ! STEP 4: Update the school profile and get updated profile data
-    const [rowsUpdated, updated_school_profile_data] = await School.update(
-      updated_school_data,
-      {
-        where: { school_id },
-        returning: true,
-      }
-    );
-
-    // ! STEP 5: Show error if no row effected
+    // ! STEP 4: Show error if no row effected
     if (rowsUpdated === 0) {
       return sendResponse(
         res,
@@ -182,15 +167,10 @@ exports.EditSchoolProfile = async (req, res) => {
       );
     }
 
-    // ! STEP 6: Send success response
-    return sendResponse(
-      res,
-      true,
-      "School profile updated successfully.",
-      updated_school_profile_data
-    );
+    // ! STEP 5: Send success response
+    return sendResponse(res, true, "School profile updated successfully.");
   } catch (error) {
-    // ! STEP 7: Error handling
+    // ! STEP 6: Error handling
     console.error("Error during editing school profile:", error);
     return sendResponse(
       res,
@@ -218,36 +198,31 @@ exports.AddClass = async (req, res) => {
       );
     }
 
-    // ! STEP 3: Verify if the school exists
-    const school = await School.findByPk(school_id);
-    if (!school) {
-      return sendResponse(
-        res,
-        false,
-        "No school found. Please check the provided school ID and try again!"
-      );
-    }
-
-    // ! STEP 4: Check for duplicate class (optional)
-    const existingClass = await ClassModel.findOne({
+    // ! STEP 3: Check for duplicate class (optional)
+    const isDuplicateClassExist = await ClassModel.findOne({
       where: { school_id, class_number, class_section },
     });
-    if (existingClass) {
+    if (isDuplicateClassExist) {
       return sendResponse(
         res,
         false,
-        "Class with the same number and section already exists for this school!"
+        "Another class with the same number and section already exists for this school!"
       );
     }
 
-    // ! STEP 5: Create the new class
+    // ! STEP 4: Create the new class
+    const numberOfSections = await ClassModel.count({
+      where: { school_id, class_number },
+    });
+
     const createdClass = await ClassModel.create({
       school_id,
       class_number,
       class_section,
+      class_section_index: numberOfSections + 1,
     });
 
-    // ! STEP 6: Verify if class creation was successful
+    // ! STEP 5: Verify if class creation was successful
     if (!createdClass) {
       return sendResponse(
         res,
@@ -256,7 +231,7 @@ exports.AddClass = async (req, res) => {
       );
     }
 
-    // ! STEP 7: Send success response
+    // ! STEP 6: Send success response
     return sendResponse(
       res,
       true,
@@ -264,7 +239,7 @@ exports.AddClass = async (req, res) => {
       createdClass
     );
   } catch (error) {
-    // ! STEP 8: Handle errors
+    // ! STEP 7: Handle errors
     console.error("Error during adding class in school:", error);
     return sendResponse(
       res,
@@ -276,8 +251,69 @@ exports.AddClass = async (req, res) => {
   }
 };
 
+// ? Changing Class Number Of School
+exports.ChangeClassNumber = async (req, res) => {
+  try {
+    const { school_id, class_id } = req?.params;
+    const { new_class_number } = req?.query;
+
+    // ! STEP 1: Validate input details
+    if (!school_id || !class_id || !new_class_number) {
+      return sendResponse(
+        res,
+        false,
+        "Failed to update class number. Reason: Missing required details!"
+      );
+    }
+
+    // ! STEP 2: Check if a class with the same number and section already exists
+    const isDuplicateClassExist = await ClassModel.findOne({
+      where: {
+        school_id,
+        class_number: new_class_number,
+        class_section: req?.Class?.class_section,
+      },
+    });
+
+    if (isDuplicateClassExist) {
+      return sendResponse(
+        res,
+        false,
+        "Failed to update class number. Reason: A class with the same number and section already exists in this school!"
+      );
+    }
+
+    // ! STEP 3: Update the class number
+    const [rowsUpdated] = await ClassModel.update(
+      { class_number: new_class_number },
+      { where: { class_id, school_id } }
+    );
+
+    if (rowsUpdated === 0) {
+      return sendResponse(
+        res,
+        false,
+        "Failed to update class number. Reason: No changes were made!"
+      );
+    }
+
+    // ! STEP 4: Return success response
+    return sendResponse(res, true, "Class number updated successfully.");
+  } catch (error) {
+    // ! STEP 5: Handle errors
+    console.error("Error during class number update:", error);
+    return sendResponse(
+      res,
+      false,
+      `Failed to update class number. Reason: ${error.message}`,
+      {},
+      error
+    );
+  }
+};
+
 // ? Add Section In Class Of A School
-exports.AddSection = async (req, res) => {
+exports.AddClassSection = async (req, res) => {
   try {
     // ! STEP 1: Extract parameters and body data
     const { school_id, class_id } = req.params;
@@ -288,57 +324,40 @@ exports.AddSection = async (req, res) => {
       return sendResponse(
         res,
         false,
-        "Failed to add the section. Reason: Missing required details (school ID, class ID, or section)!"
+        "Failed to add the section. Reason: Missing required details (school_id, class_id, or class_section)!"
       );
     }
 
-    // ! STEP 3: Check if the school exists
-    const school = await School.findByPk(school_id);
-    if (!school) {
-      return sendResponse(
-        res,
-        false,
-        "Failed to add the section. Reason: No school found with the provided school ID!"
-      );
-    }
-
-    // ! STEP 4: Check if the class exists in the school
-    const existingClass = await ClassModel.findOne({
-      where: { class_id, school_id },
-    });
-    if (!existingClass) {
-      return sendResponse(
-        res,
-        false,
-        "Failed to add the section. Reason: No class found with the provided class ID in the specified school!"
-      );
-    }
-
-    // ! STEP 5: Check if the section already exists for this class
-    const isSectionExist = await ClassModel.findOne({
+    // ! STEP 3: Check if the section already exists for this class
+    const isDuplicateClassExist = await ClassModel.findOne({
       where: {
         school_id,
-        class_number: existingClass.class_number,
+        class_number: req?.Class?.class_number,
         class_section,
       },
     });
 
-    if (isSectionExist) {
+    if (isDuplicateClassExist) {
       return sendResponse(
         res,
         false,
-        "A class with the same number and section already exists for this school!"
+        "Another class with the same number and section already exists for this school!"
       );
     }
 
-    // ! STEP 6: Create a new section
-    const newSection = await ClassModel.create({
-      school_id,
-      class_number: existingClass.class_number,
-      class_section,
+    // ! STEP 4: Create a new section
+    const numberOfSections = await ClassModel.count({
+      where: { school_id, class_number: req?.Class?.class_number },
     });
 
-    // ! STEP 7: Send a success response with the created section details
+    const newSection = await ClassModel.create({
+      school_id,
+      class_number: req?.Class?.class_number,
+      class_section,
+      class_section_index: numberOfSections + 1,
+    });
+
+    // ! STEP 5: Send a success response with the created section details
     return sendResponse(
       res,
       true,
@@ -346,12 +365,72 @@ exports.AddSection = async (req, res) => {
       newSection
     );
   } catch (error) {
-    // ! STEP 8: Handle and log unexpected errors
+    // ! STEP 6: Handle and log unexpected errors
     console.error("Error while adding a section to the class:", error);
     return sendResponse(
       res,
       false,
       `An error occurred while adding the section. Reason: ${error.message}`,
+      {}
+    );
+  }
+};
+
+exports.RenameClassSection = async (req, res) => {
+  try {
+    // ! STEP 1: Extract parameters and query data
+    const { school_id, class_id } = req?.params;
+    const { new_class_section } = req?.query;
+
+    // ! STEP 2: Validate the input data
+    if (!school_id || !class_id || !new_class_section) {
+      return sendResponse(
+        res,
+        false,
+        "Failed to add the section. Reason: Missing required details (school_id, class_id, or class_section)!"
+      );
+    }
+
+    // ! STEP 3: Check if a class with the same number and section already exists
+    const duplicateClass = await ClassModel.findOne({
+      where: {
+        school_id,
+        class_number: req?.Class?.class_number,
+        class_section: new_class_section,
+      },
+    });
+
+    if (duplicateClass) {
+      return sendResponse(
+        res,
+        false,
+        "Failed to update class section. Reason: A class with the same number and section already exists in this school!"
+      );
+    }
+
+    // ! STEP 4: Update the class number
+    const [rowsUpdated] = await ClassModel.update(
+      { class_section: new_class_section },
+      { where: { class_id, school_id } }
+    );
+
+    if (rowsUpdated === 0) {
+      return sendResponse(
+        res,
+        false,
+        "Failed to update class section. Reason: No changes were made!"
+      );
+    }
+
+    // ! STEP 5: Return success response
+    return sendResponse(res, true, "Class section updated successfully.");
+  } catch (error) {
+    // ! STEP 6: Handle and log unexpected errors
+    console.error("Error while renaming the section:", error);
+    return sendResponse(
+      res,
+      false,
+      `An error occurred while renaming the section. Reason: ${error.message}`,
       {}
     );
   }
