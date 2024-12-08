@@ -18,8 +18,6 @@ const Teacher = sequelize.define(
     },
     teacher_dob: {
       type: DataTypes.DATE,
-      allowNull: true,
-      defaultValue: null,
     },
     teacher_gender: {
       type: DataTypes.BIGINT,
@@ -36,9 +34,7 @@ const Teacher = sequelize.define(
     },
     teacher_email: {
       type: DataTypes.CHAR,
-      allowNull: true,
       unique: true,
-      defaultValue: null,
       validate: {
         isEmail: true,
         len: [3, 50],
@@ -51,8 +47,6 @@ const Teacher = sequelize.define(
     },
     teacher_alternate_phone_number: {
       type: DataTypes.BIGINT,
-      allowNull: true,
-      defaultValue: null,
     },
   },
   {

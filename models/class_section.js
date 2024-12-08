@@ -35,7 +35,7 @@ const ClassSection = sequelize.define(
 
 (async () => {
   try {
-    await ClassSection.sync({ alter: true }); // Use alter to update the table structure in the database
+    await ClassSection.sync({ alter: false }); // Use alter to update the table structure in the database
   } catch (error) {
     console.error("Error syncing the Class Section table:", error);
   }

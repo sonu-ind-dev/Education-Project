@@ -1,4 +1,6 @@
 const express = require("express");
+const router = express.Router();
+
 const {
   Signup,
   Signin,
@@ -15,8 +17,6 @@ const {
   isClassExists,
   isTeacherExists,
 } = require("../middleware");
-
-const router = express.Router();
 
 // Routes
 router.post("/signup", Signup); // School signup

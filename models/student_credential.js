@@ -1,24 +1,22 @@
-// ! school_credential table
+// * student credential table
 const { DataTypes } = require("sequelize");
 const sequelize = require("../database/db");
 
-const SchoolCredential = sequelize.define(
-  "school_credential",
+const StudentCredential = sequelize.define(
+  "student_credential",
   {
-    school_id: {
+    student_id: {
       type: DataTypes.BIGINT,
       primaryKey: true,
       autoIncrement: false,
       allowNull: false,
       unique: true,
-      comment: "Primary key for the school_credential table",
     },
-    school_phone_number: {
-      type: DataTypes.BIGINT,
+    student_username: {
+      type: DataTypes.CHAR,
       allowNull: false,
-      unique: true,
     },
-    school_password: {
+    student_password: {
       type: DataTypes.CHAR,
       allowNull: false,
       validate: {
@@ -27,17 +25,17 @@ const SchoolCredential = sequelize.define(
     },
   },
   {
-    tableName: "school_credential",
+    tableName: "student_credential",
     timestamps: false, // createdAt and updatedAt will be added automatically
   }
 );
 
 (async () => {
   try {
-    await SchoolCredential.sync({ alter: false }); // Use alter to update the table structure in the database
+    await StudentCredential.sync({ alter: false }); // Use alter to update the table structure in the database
   } catch (error) {
-    console.error("Error syncing the School Credential table:", error);
+    console.error("Error syncing the Student Credential table:", error);
   }
 })();
 
-module.exports = SchoolCredential;
+module.exports = StudentCredential;

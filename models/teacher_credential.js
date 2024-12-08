@@ -20,7 +20,7 @@ const TeacherCredential = sequelize.define(
       type: DataTypes.CHAR,
       allowNull: false,
       validate: {
-        len: [5, 25], // Length between 5 and 100 characters
+        len: [5, 25], // Length between 5 and 25 characters
       },
     },
   },

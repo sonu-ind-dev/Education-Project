@@ -34,9 +34,8 @@ const School = sequelize.define(
     },
     school_email: {
       type: DataTypes.CHAR,
-      allowNull: true,
+      allowNull: false,
       unique: true,
-      defaultValue: null,
       validate: {
         isEmail: true,
         len: [3, 50],
@@ -49,14 +48,10 @@ const School = sequelize.define(
     },
     school_alternate_phone_number: {
       type: DataTypes.BIGINT,
-      allowNull: true,
-      defaultValue: null,
     },
     school_website_url: {
       type: DataTypes.CHAR,
-      allowNull: true,
       unique: true,
-      defaultValue: null,
     },
   },
   {

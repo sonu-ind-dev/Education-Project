@@ -27,8 +27,6 @@ const SchoolTeacherRelation = sequelize.define(
     },
     teacher_joining_date: {
       type: DataTypes.DATE,
-      allowNull: true,
-      defaultValue: null,
     },
   },
   {

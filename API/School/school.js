@@ -19,16 +19,11 @@ exports.Signup = async (req, res) => {
     } = req.body;
     delete req.body.school_password;
 
-    if (
-      !school_email ||
-      !school_phone_number ||
-      !school_website_url ||
-      !school_password
-    ) {
+    if (!school_email || !school_phone_number || !school_password) {
       return sendResponse(
         res,
         false,
-        "Signin failed. Missing required details."
+        "Signup failed. Missing required details."
       );
     }
 
@@ -37,7 +32,7 @@ exports.Signup = async (req, res) => {
         [Op.or]: [
           { school_email },
           { school_phone_number },
-          { school_website_url },
+          school_website_url && { school_website_url },
         ],
       },
     });
@@ -86,7 +81,8 @@ exports.Signup = async (req, res) => {
 // Signin As School
 exports.Signin = async (req, res) => {
   try {
-    const { school_phone_number, school_password } = req.query;
+    const { school_password } = req.query;
+    const school_phone_number = Number(req.query?.school_phone_number);
 
     if (!school_phone_number || !school_password) {
       return sendResponse(
@@ -135,7 +131,7 @@ exports.Signin = async (req, res) => {
 // Edit School Basic Information
 exports.EditSchoolProfile = async (req, res) => {
   try {
-    const { school_id } = req.params;
+    const school_id = Number(req.params?.school_id);
     const updated_school_data = req.body;
 
     if (!school_id) {
@@ -174,7 +170,7 @@ exports.EditSchoolProfile = async (req, res) => {
 exports.AddClass = async (req, res) => {
   const process = await sequelize.transaction();
   try {
-    const { school_id } = req?.params;
+    const school_id = Number(req?.params?.school_id);
     const class_number = Number(req?.query?.class_number);
 
     if (!school_id || !class_number) {
@@ -243,7 +239,8 @@ exports.AddClass = async (req, res) => {
 // Changing Class Number Of School
 exports.ChangeClassNumber = async (req, res) => {
   try {
-    const { school_id, class_id } = req.params;
+    const class_id = Number(req.params?.class_id);
+    const school_id = Number(req.params?.school_id);
     const { old_class_number, new_class_number } = req.query;
 
     if (!school_id || !class_id || !new_class_number) {
@@ -296,7 +293,7 @@ exports.ChangeClassNumber = async (req, res) => {
 // Add Section In Class Of A School
 exports.AddClassSection = async (req, res) => {
   try {
-    const { class_id } = req.params;
+    const class_id = Number(req.params?.class_id);
     const { class_section } = req.query;
 
     if (!class_id || !class_section) {
@@ -342,7 +339,7 @@ exports.AddClassSection = async (req, res) => {
 // Rename Class Section
 exports.RenameClassSection = async (req, res) => {
   try {
-    const { class_id } = req.params;
+    const class_id = Number(req.params?.class_id);
     const { old_class_section, new_class_section } = req.query;
 
     if (!class_id || !new_class_section) {
@@ -398,7 +395,8 @@ exports.RenameClassSection = async (req, res) => {
 // Add Teacher In School
 exports.AddTeacherIntoSchool = async (req, res) => {
   try {
-    const { school_id, teacher_id } = req.params;
+    const school_id = Number(req.params?.school_id);
+    const teacher_id = Number(req.params?.teacher_id);
     const { teacher_role, teacher_from_class_id, teacher_to_class_id } =
       req.body;
 
@@ -422,7 +420,11 @@ exports.AddTeacherIntoSchool = async (req, res) => {
       },
     });
 
-    if (isClassesExists !== 2) {
+    if (
+      (teacher_from_class_id === teacher_to_class_id &&
+        isClassesExists !== 1) ||
+      (teacher_from_class_id !== teacher_to_class_id && isClassesExists !== 2)
+    ) {
       return sendResponse(
         res,
         false,
@@ -463,7 +465,8 @@ exports.AddTeacherIntoSchool = async (req, res) => {
 // Remove Teacher From School
 exports.RemoveTeacherFromSchool = async (req, res) => {
   try {
-    const { school_id, teacher_id } = req.params;
+    const school_id = Number(req.params?.school_id);
+    const teacher_id = Number(req.params?.teacher_id);
 
     if (!school_id || !teacher_id) {
       return sendResponse(

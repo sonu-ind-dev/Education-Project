@@ -12,7 +12,7 @@ exports.Signup = async (req, res) => {
     const { teacher_email, teacher_password, teacher_phone_number } = req.body;
     delete req.body.school_password;
 
-    if (!teacher_email || !teacher_phone_number || !teacher_password) {
+    if (!teacher_phone_number || !teacher_password) {
       return sendResponse(
         res,
         false,
@@ -22,7 +22,7 @@ exports.Signup = async (req, res) => {
 
     const duplicateEntry = await Teacher.findOne({
       where: {
-        [Op.or]: [{ teacher_email }, { teacher_phone_number }],
+        [Op.or]: [teacher_email && { teacher_email }, { teacher_phone_number }],
       },
     });
 
@@ -72,7 +72,8 @@ exports.Signup = async (req, res) => {
 // Signin As Teacher
 exports.Signin = async (req, res) => {
   try {
-    const { teacher_phone_number, teacher_password } = req.query;
+    const teacher_phone_number = Number(req.query?.teacher_phone_number);
+    const { teacher_password } = req.query;
 
     if (!teacher_phone_number || !teacher_password) {
       return sendResponse(
@@ -121,7 +122,7 @@ exports.Signin = async (req, res) => {
 // Edit Teacher Basic Information
 exports.EditTeacherProfile = async (req, res) => {
   try {
-    const { teacher_id } = req.params;
+    const teacher_id = Number(req.params?.teacher_id);
     const updated_teacher_data = req.body;
 
     if (!teacher_id) {
