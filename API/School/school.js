@@ -5,6 +5,7 @@ const SchoolCredential = require("../../models/school_credential");
 const sendResponse = require("../../responseFormat");
 const ClassModel = require("../../models/class");
 const ClassSection = require("../../models/class_section");
+const SchoolTeacherRelation = require("../../models/school_teacher_relation");
 
 // Create School Account & Save Credentials
 exports.Signup = async (req, res) => {
@@ -17,6 +18,19 @@ exports.Signup = async (req, res) => {
       school_phone_number,
     } = req.body;
     delete req.body.school_password;
+
+    if (
+      !school_email ||
+      !school_phone_number ||
+      !school_website_url ||
+      !school_password
+    ) {
+      return sendResponse(
+        res,
+        false,
+        "Signin failed. Missing required details."
+      );
+    }
 
     const duplicateEntry = await School.findOne({
       where: {
@@ -124,11 +138,11 @@ exports.EditSchoolProfile = async (req, res) => {
     const { school_id } = req.params;
     const updated_school_data = req.body;
 
-    if (!school_id || !updated_school_data) {
+    if (!school_id) {
       return sendResponse(
         res,
         false,
-        "Edit school profile failed. Missing required details."
+        "Edit school profile failed. Unable to get school ID."
       );
     }
 
@@ -375,6 +389,118 @@ exports.RenameClassSection = async (req, res) => {
       res,
       false,
       `Failed to rename section. Reason: ${error.message}`,
+      {},
+      error
+    );
+  }
+};
+
+// Add Teacher In School
+exports.AddTeacherIntoSchool = async (req, res) => {
+  try {
+    const { school_id, teacher_id } = req.params;
+    const { teacher_role, teacher_from_class_id, teacher_to_class_id } =
+      req.body;
+
+    req.body.school_id = school_id;
+    req.body.teacher_id = teacher_id;
+
+    if (!teacher_role || !teacher_from_class_id || !teacher_to_class_id) {
+      return sendResponse(
+        res,
+        false,
+        "Add teacher failed. Missing required details."
+      );
+    }
+
+    const isClassesExists = await ClassModel.count({
+      where: {
+        [Op.or]: [
+          { class_id: teacher_from_class_id },
+          { class_id: teacher_to_class_id },
+        ],
+      },
+    });
+
+    if (isClassesExists !== 2) {
+      return sendResponse(
+        res,
+        false,
+        `Class not found with the provided class ids`
+      );
+    }
+
+    const isSchoolTeacherNotConnected = await SchoolTeacherRelation.count({
+      where: { school_id, teacher_id },
+    });
+
+    if (isSchoolTeacherNotConnected) {
+      return sendResponse(res, false, `This teacher is already added.`);
+    }
+
+    const school_teacher_relation = await SchoolTeacherRelation.create(
+      req.body
+    );
+
+    return sendResponse(
+      res,
+      true,
+      `Teacher added successfully.`,
+      school_teacher_relation
+    );
+  } catch (error) {
+    console.error("Error while adding teacher:", error);
+    sendResponse(
+      res,
+      false,
+      `Failed to add teacher. Reason: ${error.message}`,
+      {},
+      error
+    );
+  }
+};
+
+// Remove Teacher From School
+exports.RemoveTeacherFromSchool = async (req, res) => {
+  try {
+    const { school_id, teacher_id } = req.params;
+
+    if (!school_id || !teacher_id) {
+      return sendResponse(
+        res,
+        false,
+        "Add teacher failed. Missing required details."
+      );
+    }
+
+    const isSchoolTeacherNotConnected = await SchoolTeacherRelation.count({
+      where: { school_id, teacher_id },
+    });
+
+    if (!isSchoolTeacherNotConnected) {
+      return sendResponse(
+        res,
+        false,
+        `Teacher is already not present in school staff.`
+      );
+    }
+
+    const school_teacher_relation = await SchoolTeacherRelation.create(
+      req.body
+    );
+
+    return sendResponse(
+      res,
+      true,
+      `Teacher removed successfully.`,
+      school_teacher_relation
+    );
+  } catch (error) {
+    console.error("Error while removing teacher:", error);
+    sendResponse(
+      res,
+      false,
+      `Failed to remove teacher. Reason: ${error.message}`,
       {},
       error
     );

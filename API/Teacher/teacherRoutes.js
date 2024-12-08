@@ -1,8 +1,16 @@
 const express = require("express");
-const { signin } = require("./teacher");
+const { Signup, Signin, EditTeacherProfile } = require("./teacher");
+const { isTeacherExists } = require("../middleware");
 
 const router = express.Router();
 
-router.post("/signin", signin);
+router.post("/signup", Signup); // Teacher signup
+router.get("/signin", Signin); // Teacher Signin
+
+router.put(
+  "/teacher_id/:teacher_id/editTeacherProfile",
+  isTeacherExists,
+  EditTeacherProfile
+); // Edit teacher profile
 
 module.exports = router;
