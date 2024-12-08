@@ -138,11 +138,11 @@ exports.EditSchoolProfile = async (req, res) => {
     const { school_id } = req.params;
     const updated_school_data = req.body;
 
-    if (!school_id || !updated_school_data) {
+    if (!school_id) {
       return sendResponse(
         res,
         false,
-        "Edit school profile failed. Missing required details."
+        "Edit school profile failed. Unable to get school ID."
       );
     }
 

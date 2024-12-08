@@ -4,35 +4,6 @@ const sendResponse = require("../../responseFormat");
 const Teacher = require("../../models/teacher");
 const TeacherCredential = require("../../models/teacher_credential");
 
-/**
- * Middleware to check if a teacher exists by teacher_id.
- */
-exports.isTeacherExists = async (req, res, next) => {
-  try {
-    const teacher_id =
-      req.params.teacher_id || req.query.teacher_id || req.body.teacher_id;
-
-    if (!teacher_id) {
-      return sendResponse(res, false, "teacher_id not provided!");
-    }
-
-    const teacher = await Teacher.findByPk(teacher_id);
-    if (!teacher) {
-      return sendResponse(
-        res,
-        false,
-        `Teacher not found with the provided teacher_id: ${teacher_id}`
-      );
-    }
-
-    req.teacher = teacher;
-    next();
-  } catch (error) {
-    console.error("Error in isTeacherExists middleware:", error);
-    sendResponse(res, false, "Failed to verify teacher existence.", {}, error);
-  }
-};
-
 // Create Teacher Account & Save Credentials
 exports.Signup = async (req, res) => {
   const transaction = await sequelize.transaction();
@@ -141,6 +112,44 @@ exports.Signin = async (req, res) => {
       res,
       false,
       `Signin failed. Reason: ${error.message}`,
+      {},
+      error
+    );
+  }
+};
+
+// Edit Teacher Basic Information
+exports.EditTeacherProfile = async (req, res) => {
+  try {
+    const { teacher_id } = req.params;
+    const updated_teacher_data = req.body;
+
+    if (!teacher_id) {
+      return sendResponse(
+        res,
+        false,
+        "Edit teacher profile failed. Unable to get teacher ID."
+      );
+    }
+
+    const [rowsUpdated] = await Teacher.update(updated_teacher_data, {
+      where: { teacher_id },
+    });
+    if (rowsUpdated === 0) {
+      return sendResponse(
+        res,
+        false,
+        "Teacher profile update failed. No changes were made."
+      );
+    }
+
+    sendResponse(res, true, "Teacher profile updated successfully.");
+  } catch (error) {
+    console.error("Error during editing teacher profile:", error);
+    sendResponse(
+      res,
+      false,
+      `Edit teacher profile failed. Reason: ${error.message}`,
       {},
       error
     );
