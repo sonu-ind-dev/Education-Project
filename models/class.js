@@ -34,7 +34,7 @@ const ClassModel = sequelize.define(
 
 (async () => {
   try {
-    await ClassModel.sync({ alter: true }); // Use alter to update the table structure in the database
+    await ClassModel.sync({ alter: false }); // Use alter to update the table structure in the database
   } catch (error) {
     console.error("Error syncing the Class table:", error);
   }
